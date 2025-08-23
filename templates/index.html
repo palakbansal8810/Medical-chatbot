@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medical Assistant Chatbot</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-stethoscope"></i>
+                    <h1>Medical Assistant</h1>
+                </div>
+                <p class="subtitle">Your AI-powered medical information companion</p>
+            </div>
+        </div>
+
+        <div class="chat-container">
+            <div class="chat-messages" id="chatMessages">
+                <div class="message bot-message">
+                    <div class="message-avatar">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <div class="message-content">
+                        <p>Hello! I'm your medical assistant. I can help answer your health-related questions based on medical knowledge. How can I assist you today?</p>
+                        <div class="message-time">Just now</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="loading-indicator" id="loadingIndicator" style="display: none;">
+                <div class="typing-animation">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+                <span>AI is thinking...</span>
+            </div>
+
+            <div class="chat-input-container">
+                <form id="chatForm" class="chat-form">
+                    <div class="input-wrapper">
+                        <input 
+                            type="text" 
+                            id="messageInput" 
+                            name="msg" 
+                            placeholder="Ask me about symptoms, conditions, treatments..."
+                            required
+                            autocomplete="off"
+                        >
+                        <button type="submit" id="sendButton">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </form>
+                <div class="disclaimer">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    This chatbot provides general medical information only. Always consult healthcare professionals for medical advice.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const chatForm = document.getElementById('chatForm');
+        const messageInput = document.getElementById('messageInput');
+        const chatMessages = document.getElementById('chatMessages');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const sendButton = document.getElementById('sendButton');
+
+        function addMessage(content, isBot = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isBot ? 'bot-message' : 'user-message'}`;
+            
+            const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            
+            messageDiv.innerHTML = `
+                <div class="message-avatar">
+                    <i class="fas ${isBot ? 'fa-robot' : 'fa-user'}"></i>
+                </div>
+                <div class="message-content">
+                    <p>${content}</p>
+                    <div class="message-time">${time}</div>
+                </div>
+            `;
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            // Add animation
+            setTimeout(() => {
+                messageDiv.style.opacity = '1';
+                messageDiv.style.transform = 'translateY(0)';
+            }, 100);
+        }
+
+        function showLoading() {
+            loadingIndicator.style.display = 'flex';
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            sendButton.disabled = true;
+            sendButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        }
+
+        function hideLoading() {
+            loadingIndicator.style.display = 'none';
+            sendButton.disabled = false;
+            sendButton.innerHTML = '<i class="fas fa-paper-plane"></i>';
+        }
+
+        chatForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const message = messageInput.value.trim();
+            if (!message) return;
+            
+            // Add user message
+            addMessage(message, false);
+            messageInput.value = '';
+            
+            // Show loading
+            showLoading();
+            
+            try {
+                const formData = new FormData();
+                formData.append('msg', message);
+                
+                const response = await fetch('/get', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    const botResponse = await response.text();
+                    hideLoading();
+                    addMessage(botResponse, true);
+                } else {
+                    throw new Error('Network response was not ok');
+                }
+            } catch (error) {
+                hideLoading();
+                addMessage('Sorry, I encountered an error. Please try again later.', true);
+                console.error('Error:', error);
+            }
+        });
+
+        // Auto-focus input
+        messageInput.focus();
+
+        // Handle Enter key
+        messageInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                chatForm.dispatchEvent(new Event('submit'));
+            }
+        });
+    </script>
+</body>
+</html>
